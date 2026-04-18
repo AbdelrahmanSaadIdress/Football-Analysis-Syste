@@ -11,7 +11,10 @@ from utils import (
     ellipse_axes_from_bbox,
     draw_ground_ellipse,
     draw_id_label,
-    draw_inverted_triangle
+    draw_inverted_triangle,
+    draw_ball_ellipse,
+    draw_has_ball_triangle,
+    draw_team_has_ball_ellipse,
 )
 
 
@@ -231,29 +234,18 @@ class Tracker:
                 color = data.get("team_color", (0, 0, 255))
 
                 if data.get("team_has_ball"):
-                    cv2.ellipse(
-                        frame,
-                        center=center,
-                        axes=(axes[0]+5, axes[1]+5),
-                        angle=0,
-                        startAngle=0,
-                        endAngle=360,
-                        color=(0, 0, 255),
-                        thickness=2
-                    )
+                    draw_team_has_ball_ellipse(frame, center, axes)
 
                 draw_ground_ellipse(frame, center, axes, color)
                 draw_id_label(frame, str(track_id), center)
 
                 if data.get("has_ball"):
-                    tri_center = (center[0], center[1] - 40)
-                    draw_inverted_triangle(frame, tri_center, 12)
+                    draw_has_ball_triangle(frame, bbox)
 
             # -------- Ball --------
             for _, data in tracks["balls"][frame_idx].items():
                 bbox = data["bbox"]
-                center = feet_anchor(bbox)
-                draw_inverted_triangle(frame, center, 8)
+                draw_ball_ellipse(frame, bbox)
 
             # -------- Possession HUD --------
             self.draw_possession_hud(frame)

@@ -174,7 +174,7 @@ def main():
     # -----------------------------
     logging.info("Rendering tracks, camera movement, speed and distance")
     vis_frames = tracker.visualize_tracks(frames, tracks)
-    vis_frames = cam_estimator.draw_camera_movement(vis_frames, camera_movements)
+    # vis_frames = cam_estimator.draw_camera_movement(vis_frames, camera_movements)
     vis_frames = speed_distance_estimator.draw_speed_and_distance(vis_frames, tracks)
 
     # -----------------------------
