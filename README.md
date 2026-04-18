@@ -8,10 +8,10 @@ Detects players, referees, and the ball · assigns teams by jersey colour · tra
 
 <!-- ════════════════  INPUT VIDEO  ════════════════ -->
 ### Input
-video_samples/08fd33_4.mp4
+[Watch Input](video_samples/08fd33_4.mp4)
 <!-- ════════════════  OUTPUT VIDEO  ════════════════ -->
 ### Output
-runs/outputs/result.mp4
+[Watch Output](runs/outputs/result.mp4)
 </div>
 
 ---
