@@ -8,7 +8,7 @@ import cv2
 
 PLAYER_FALLBACK_COLOR = (60, 60, 220)
 REFEREE_COLOR         = (30, 30, 30)
-TEXT_COLOR            = (0, 0, 0)
+TEXT_COLOR            = (255, 255, 255)
 FONT                  = cv2.FONT_HERSHEY_DUPLEX
 
 BALL_RING_OUTER  = (40,  40, 255)
@@ -216,10 +216,10 @@ def draw_team_has_ball_ellipse(frame, center, axes):
 def draw_possession_hud(frame, team_possession_frames, team_colors=None):
     fh, fw = frame.shape[:2]
 
-    bar_w = min(420, fw - 60)
+    bar_w = 260
     bar_h = 52
-    bar_x = (fw - bar_w) // 2
-    bar_y = fh - bar_h - 18
+    bar_x = 18
+    bar_y = 18
 
     total = sum(team_possession_frames.values()) + 1e-9
     teams = sorted(team_possession_frames.keys())
@@ -283,8 +283,7 @@ def draw_possession_hud(frame, team_possession_frames, team_colors=None):
 
     # "POSSESSION" title
     title = "POSSESSION"
-    (ttw, _), _ = cv2.getTextSize(title, FONT, 0.36, 1)
-    tx = (fw - ttw) // 2
+    tx = bar_x
     ty = bar_y - 6
     cv2.putText(frame, title, (tx + 1, ty + 1), FONT, 0.36, (0, 0, 0),       2, cv2.LINE_AA)
     cv2.putText(frame, title, (tx,     ty    ), FONT, 0.36, (180, 180, 180), 1, cv2.LINE_AA)
