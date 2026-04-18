@@ -40,6 +40,12 @@ def parse_args():
         default="yolo_models/best.pt",
         help="Path to model weights"
     )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        default="runs/outputs/result.mp4",
+        help="Path to save output video"
+    )
     return parser.parse_args()
 
 # ============================================================
@@ -174,8 +180,8 @@ def main():
     # -----------------------------
     # Save output
     # -----------------------------
-    save_video(vis_frames, SAVE_PATH)
-    logging.info(f"Result saved to {SAVE_PATH}")
+    save_video(vis_frames, args.output_path, fps=30)
+    logging.info(f"Result saved to {args.output_path}")
 
 
 # ============================================================
