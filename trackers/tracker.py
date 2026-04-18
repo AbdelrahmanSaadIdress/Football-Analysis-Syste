@@ -15,6 +15,7 @@ from utils import (
     draw_ball_ellipse,
     draw_has_ball_triangle,
     draw_team_has_ball_ellipse,
+    draw_possession_hud,
 )
 
 
@@ -32,10 +33,7 @@ class Tracker:
         self.batch_size = batch_size
         self.no_of_batches = no_of_batches
 
-        # Ball assigner
         self.ball_assigner = BallAssigner(max_distance=ball_max_distance)
-
-        # Possession counter
         self.team_possession_frames = {}
 
     # --------------------------------------------------
@@ -43,15 +41,12 @@ class Tracker:
     # --------------------------------------------------
     def detect_frames(self, frames):
         detections = []
-
         for batch_idx in range(0, len(frames), self.batch_size):
             if self.no_of_batches and batch_idx // self.batch_size >= self.no_of_batches:
                 break
-
             batch_frames = frames[batch_idx:batch_idx + self.batch_size]
             results = self.model.predict(batch_frames, verbose=False)
             detections.extend(results)
-
         return detections
 
     # --------------------------------------------------
@@ -66,10 +61,7 @@ class Tracker:
             if balls:
                 ball_id, data = next(iter(balls.items()))
                 bbox = data["bbox"]
-                center = (
-                    (bbox[0] + bbox[2]) / 2,
-                    (bbox[1] + bbox[3]) / 2
-                )
+                center = ((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2)
                 ball_centers.append(center)
                 frame_indices.append(frame_idx)
 
@@ -77,9 +69,8 @@ class Tracker:
             return tracks
 
         frame_indices = np.array(frame_indices)
-        ball_centers = np.array(ball_centers)
-
-        all_frames = np.arange(len(tracks["balls"]))
+        ball_centers  = np.array(ball_centers)
+        all_frames    = np.arange(len(tracks["balls"]))
 
         x_interp = np.interp(all_frames, frame_indices, ball_centers[:, 0])
         y_interp = np.interp(all_frames, frame_indices, ball_centers[:, 1])
@@ -95,7 +86,6 @@ class Tracker:
                         "track_id": ball_id
                     }
                 }
-
         return tracks
 
     # --------------------------------------------------
@@ -108,17 +98,12 @@ class Tracker:
 
         detections = self.detect_frames(frames)
 
-        tracks = {
-            "players": [],
-            "referees": [],
-            "balls": []
-        }
+        tracks = {"players": [], "referees": [], "balls": []}
 
         for frame_idx, detection in enumerate(detections):
-            sv_dets = sv.Detections.from_ultralytics(detection)
+            sv_dets    = sv.Detections.from_ultralytics(detection)
             class_names = detection.names
-
-            name_to_id = {v: k for k, v in class_names.items()}
+            name_to_id  = {v: k for k, v in class_names.items()}
             player_class_id = name_to_id.get("player")
 
             for i, class_id in enumerate(sv_dets.class_id):
@@ -133,11 +118,10 @@ class Tracker:
             tracks["balls"].append({})
 
             for det in tracked_dets:
-                bbox = det[0].tolist()
+                bbox     = det[0].tolist()
                 track_id = int(det[4])
                 cls_name = det[5]["class_name"]
-
-                data = {"bbox": bbox, "track_id": track_id}
+                data     = {"bbox": bbox, "track_id": track_id}
 
                 if cls_name == "player":
                     tracks["players"][frame_idx][track_id] = data
@@ -159,9 +143,8 @@ class Tracker:
     # --------------------------------------------------
     def update_ball_possession(self, tracks, frame_idx):
         players = tracks["players"][frame_idx]
-        balls = tracks["balls"][frame_idx]
+        balls   = tracks["balls"][frame_idx]
 
-        # Clear previous flags
         for data in players.values():
             data.pop("has_ball", None)
             data.pop("team_has_ball", None)
@@ -179,7 +162,6 @@ class Tracker:
             return None
 
         owner_team = int(owner_team)
-
         owner_data["has_ball"] = True
 
         for data in players.values():
@@ -192,6 +174,22 @@ class Tracker:
         return owner_team
 
     # --------------------------------------------------
+    # COLLECT TEAM COLOURS FOR HUD
+    # --------------------------------------------------
+    def _collect_team_colors(self, players_frame):
+        """
+        Scans the current frame's player data and builds a
+        {team_id: BGR_color} dict for the HUD.
+        """
+        colors = {}
+        for data in players_frame.values():
+            team = data.get("team")
+            col  = data.get("team_color")
+            if team is not None and col is not None:
+                colors[int(team)] = tuple(int(c) for c in col)
+        return colors if colors else None
+
+    # --------------------------------------------------
     # VISUALIZATION
     # --------------------------------------------------
     def visualize_tracks(self, frames, tracks, camera_movements=None, max_frames=None):
@@ -201,82 +199,62 @@ class Tracker:
             if max_frames and frame_idx >= max_frames:
                 break
 
-            frame = frame.copy()
+            frame  = frame.copy()
             frame_h = frame.shape[0]
 
             controlling_team = self.update_ball_possession(tracks, frame_idx)
 
             # -------- Camera motion arrow --------
-            cx, cy = 0, 0
             if camera_movements and frame_idx in camera_movements:
                 cx, cy = camera_movements[frame_idx]
-                h, w = frame.shape[:2]
+                h, w   = frame.shape[:2]
                 center = (w // 2, h // 2)
-                scale = 6
+                scale  = 6
                 end_point = (int(center[0] + cx * scale), int(center[1] + cy * scale))
-                cv2.arrowedLine(frame, center, end_point, (255, 0, 0), 3, tipLength=0.3)
-                cv2.putText(
-                    frame,
-                    f"Camera motion: cx={cx:.2f}, cy={cy:.2f}",
-                    (20, 50),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (255, 0, 255),
-                    2
-                )
+                cv2.arrowedLine(frame, center, end_point, (200, 200, 255), 2, tipLength=0.3)
+                label = f"cam  dx={cx:.1f}  dy={cy:.1f}"
+                cv2.putText(frame, label, (w // 2 - 80, h // 2 - 14),
+                            cv2.FONT_HERSHEY_DUPLEX, 0.45, (0, 0, 0),       2, cv2.LINE_AA)
+                cv2.putText(frame, label, (w // 2 - 80, h // 2 - 14),
+                            cv2.FONT_HERSHEY_DUPLEX, 0.45, (200, 200, 255), 1, cv2.LINE_AA)
 
             # -------- Players --------
             for track_id, data in tracks["players"][frame_idx].items():
-                bbox = data["bbox"]
+                bbox   = data["bbox"]
                 center = feet_anchor(bbox)
-                axes = ellipse_axes_from_bbox(bbox, frame_h)
+                axes   = ellipse_axes_from_bbox(bbox, frame_h)
+                color  = data.get("team_color", (60, 60, 220))
 
-                color = data.get("team_color", (0, 0, 255))
-
+                # team possession ring (drawn first, behind everything)
                 if data.get("team_has_ball"):
                     draw_team_has_ball_ellipse(frame, center, axes)
 
+                # team-coloured shadow disc
                 draw_ground_ellipse(frame, center, axes, color)
-                draw_id_label(frame, str(track_id), center)
 
+                # pill ID badge
+                draw_id_label(frame, str(track_id), center, bg_color=color)
+
+                # ball-carrier arrow above head
                 if data.get("has_ball"):
                     draw_has_ball_triangle(frame, bbox)
 
+            # -------- Referees --------
+            for track_id, data in tracks["referees"][frame_idx].items():
+                bbox   = data["bbox"]
+                center = feet_anchor(bbox)
+                axes   = ellipse_axes_from_bbox(bbox, frame_h)
+                draw_ground_ellipse(frame, center, axes, (30, 30, 30))
+                draw_id_label(frame, f"R{track_id}", center, bg_color=(30, 30, 30))
+
             # -------- Ball --------
             for _, data in tracks["balls"][frame_idx].items():
-                bbox = data["bbox"]
-                draw_ball_ellipse(frame, bbox)
+                draw_ball_ellipse(frame, data["bbox"])
 
             # -------- Possession HUD --------
-            self.draw_possession_hud(frame)
+            team_colors = self._collect_team_colors(tracks["players"][frame_idx])
+            draw_possession_hud(frame, self.team_possession_frames, team_colors)
 
             visualized_frames.append(frame)
 
         return visualized_frames
-
-
-
-    # --------------------------------------------------
-    # HUD
-    # --------------------------------------------------
-    def draw_possession_hud(self, frame):
-        x, y, w, h = 20, 20, 260, 70
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (40, 40, 40), -1)
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 255, 255), 2)
-
-        total = sum(self.team_possession_frames.values()) + 1e-6
-
-        y_offset = y + 25
-        for team, frames in self.team_possession_frames.items():
-            pct = (frames / total) * 100
-            text = f"Team {team}: {pct:.1f}%"
-            cv2.putText(
-                frame,
-                text,
-                (x + 10, y_offset),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (255, 255, 255),
-                2
-            )
-            y_offset += 25
