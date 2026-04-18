@@ -1,0 +1,7 @@
+- hardcode the goalkeepers ids to the right teams.
+
+- extend the video duration by passing all the frames.
+
+- delete the camera movement visualizing in the screen.
+
+- put the project in a repo.
