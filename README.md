@@ -8,10 +8,10 @@ Detects players, referees, and the ball · assigns teams by jersey colour · tra
 
 <!-- ════════════════  INPUT VIDEO  ════════════════ -->
 ### Input
-[Watch Input](video_samples/08fd33_4.mp4)
+https://github.com/user-attachments/assets/06dbe34d-b1f8-452f-8d28-d2fb40832787
 <!-- ════════════════  OUTPUT VIDEO  ════════════════ -->
 ### Output
-[Watch Output](runs/outputs/result.mp4)
+https://github.com/user-attachments/assets/e76b15b6-0e19-4f17-b515-339963183776
 </div>
 
 ---
