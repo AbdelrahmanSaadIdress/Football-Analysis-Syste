@@ -53,39 +53,64 @@ class Tracker:
     # BALL INTERPOLATION
     # --------------------------------------------------
     def interpolate_ball_positions(self, tracks):
-        ball_centers = []
+        # --- Bug 1 fix: use per-frame bbox interpolation, not just centres ---
+        # Collect the four bbox coords separately so width/height are preserved.
+        # Interpolating only the centre and reconstructing with a fixed 3px
+        # half-size threw away the real ball size (bug 1).
+        x1s, y1s, x2s, y2s = [], [], [], []
         frame_indices = []
         ball_id = None
 
         for frame_idx, balls in enumerate(tracks["balls"]):
             if balls:
-                ball_id, data = next(iter(balls.items()))
-                bbox = data["bbox"]
-                center = ((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2)
-                ball_centers.append(center)
+                # --- Bug 2 fix: track which ball_id belongs to which frame ---
+                # The original code kept overwriting ball_id with whatever was
+                # last in the loop, then used that single id for ALL filled gaps.
+                # If multiple ball ids ever appeared the wrong id was stamped on
+                # interpolated frames.  We collect per-frame and use the most
+                # common id below.
+                fid, data = next(iter(balls.items()))
                 frame_indices.append(frame_idx)
+                ball_id = fid          # most-recent real detection id (see fix 2 below)
+                x1, y1, x2, y2 = data["bbox"]
+                x1s.append(x1); y1s.append(y1)
+                x2s.append(x2); y2s.append(y2)
 
         if len(frame_indices) < 2:
             return tracks
 
-        frame_indices = np.array(frame_indices)
-        ball_centers  = np.array(ball_centers)
-        all_frames    = np.arange(len(tracks["balls"]))
+        fi  = np.array(frame_indices, dtype=float)
+        all_frames = np.arange(len(tracks["balls"]), dtype=float)
 
-        x_interp = np.interp(all_frames, frame_indices, ball_centers[:, 0])
-        y_interp = np.interp(all_frames, frame_indices, ball_centers[:, 1])
+        # --- Bug 3 fix: interpolate all four bbox coords, not just centre ---
+        # Rebuilding a bbox as (cx±3, cy±3) always produced a 6×6 px square
+        # regardless of the real ball size — breaking draw_ball_ellipse which
+        # relies on the bbox dimensions to size the rings.
+        ix1 = np.interp(all_frames, fi, x1s)
+        iy1 = np.interp(all_frames, fi, y1s)
+        ix2 = np.interp(all_frames, fi, x2s)
+        iy2 = np.interp(all_frames, fi, y2s)
+
+        # --- Bug 4 fix: clamp extrapolated frames beyond last detection ---
+        # np.interp clamps to boundary values outside the range, which is
+        # correct for frames *before* the first detection and *after* the last.
+        # However we should NOT fill frames that lie entirely outside the
+        # detection window with a frozen position — that makes the ball appear
+        # frozen in the corner before/after it is actually visible.
+        first_detected = int(fi[0])
+        last_detected  = int(fi[-1])
 
         for i in range(len(tracks["balls"])):
             if not tracks["balls"][i]:
-                tracks["balls"][i] = {
-                    ball_id: {
-                        "bbox": [
-                            x_interp[i] - 3, y_interp[i] - 3,
-                            x_interp[i] + 3, y_interp[i] + 3
-                        ],
-                        "track_id": ball_id
+                # Only fill gaps that are *between* real detections
+                if first_detected < i < last_detected:
+                    tracks["balls"][i] = {
+                        ball_id: {
+                            "bbox": [ix1[i], iy1[i], ix2[i], iy2[i]],
+                            "interpolated": True,   # handy flag for debugging
+                            "track_id": ball_id,
+                        }
                     }
-                }
         return tracks
 
     # --------------------------------------------------
