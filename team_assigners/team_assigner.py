@@ -11,7 +11,7 @@ class TeamAssigner:
         self.frame_counter = 0
         self.refresh_interval = refresh_interval
         self.kmeans_team = None
-        self.goalkeeper_ids =  {99: 2, 114: 2, 129:2, 225:1 }  # Example goalkeeper track IDs for team assignment
+        self.goalkeeper_ids =  {91: 2, 118: 2, 129:2, 225:1 }  # Example goalkeeper track IDs for team assignment
 
     # --------------------------------------------------
     # PLAYER COLOR EXTRACTION (BGR)
